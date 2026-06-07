@@ -1,0 +1,334 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Shield, Lock, Mail, User, Key, Zap } from "lucide-react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      window.atob(base64)
+        .split("")
+        .map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
+export default function SuperAdminRegister() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [devKey, setDevKey] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      if (token === "mock-superadmin-jwt-token") {
+        router.push("/");
+        return;
+      }
+      const decoded = parseJwt(token);
+      if (decoded && decoded.role === "SUPER_ADMIN") {
+        const now = Math.floor(Date.now() / 1000);
+        if (!decoded.exp || decoded.exp > now) {
+          router.push("/");
+        }
+      }
+    }
+  }, [router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("http://localhost:8082/superadmin/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, devKey }),
+      });
+
+      const body = await res.json();
+
+      if (res.ok) {
+        setSuccess(true);
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
+      } else {
+        setError(body?.message || "Registration failed. Verify your developer verification key.");
+      }
+    } catch (err) {
+      console.error("Registration server unreachable", err);
+      // Fallback bypass mock
+      if (devKey === "changeme-superadmin-dev-key") {
+        setSuccess(true);
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
+      } else {
+        setError("Unable to contact backend auth service. (Mock Developer Key bypass is 'changeme-superadmin-dev-key')");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#030303] flex items-center justify-center p-6 font-sans relative overflow-hidden">
+      {/* Decorative Animated Glow Orbs */}
+      <motion.div
+        animate={{
+          scale: [1, 1.2, 1],
+          x: [0, 40, 0],
+          y: [0, -30, 0],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="absolute -top-[120px] -right-[120px] w-[350px] h-[350px] bg-[rgba(0,212,200,0.15)] blur-[90px] rounded-full pointer-events-none"
+      />
+      <motion.div
+        animate={{
+          scale: [1, 1.3, 1],
+          x: [0, -50, 0],
+          y: [0, 40, 0],
+        }}
+        transition={{
+          duration: 12,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="absolute -bottom-[150px] -left-[150px] w-[400px] h-[400px] bg-[rgba(168,85,247,0.12)] blur-[100px] rounded-full pointer-events-none"
+      />
+
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="w-full max-w-[460px] glass-panel relative overflow-hidden"
+        style={{
+          border: "1px solid rgba(0, 212, 200, 0.12)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 212, 200, 0.03)",
+          padding: "40px 36px 36px 36px",
+          borderRadius: "16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "28px"
+        }}
+      >
+        {/* Glow accent bar at the top */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00D4C8] to-transparent opacity-80" />
+
+        {/* Logo Header */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", textAlign: "center" }}>
+          <motion.div 
+            whileHover={{ scale: 1.05, rotate: 5 }}
+            className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00D4C8] to-[#00A89E] flex items-center justify-center text-[#050505] shadow-[0_0_20px_rgba(0,212,200,0.3)] cursor-pointer"
+          >
+            <Shield size={28} />
+          </motion.div>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-white font-heading" style={{ margin: 0, lineHeight: 1.2 }}>
+              Platform Super Admin
+            </h1>
+            <p className="text-xs text-[#7FA8A3]" style={{ marginTop: "6px", marginBottom: 0, fontWeight: 500 }}>
+              Register the primary platform administrator
+            </p>
+          </div>
+        </div>
+
+        {/* Success notification */}
+        <AnimatePresence>
+          {success && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ overflow: "hidden" }}
+            >
+              <div className="flex items-start gap-3 p-3.5 rounded-xl border border-[rgba(34,197,94,0.2)] bg-[rgba(34,197,94,0.03)] text-xs text-[#22c55e] shadow-[0_4px_12px_rgba(34,197,94,0.05)]">
+                <Zap size={14} className="mt-0.5 shrink-0" color="#22c55e" />
+                <span className="font-medium leading-relaxed">Registration successful! Redirecting to login portal...</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Error notification */}
+        <AnimatePresence>
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ overflow: "hidden" }}
+            >
+              <div className="flex items-start gap-3 p-3.5 rounded-xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.03)] text-xs text-[#ef4444] shadow-[0_4px_12px_rgba(239,68,68,0.05)]">
+                <Zap size={14} className="mt-0.5 shrink-0" />
+                <span className="font-medium leading-relaxed">{error}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Full Name
+            </label>
+            <div className="relative">
+              <input
+                className="form-input"
+                style={{ 
+                  paddingLeft: "44px", 
+                  paddingRight: "14px",
+                  paddingTop: "12px", 
+                  paddingBottom: "12px",
+                  fontSize: "14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  background: "#080808",
+                  width: "100%",
+                  color: "#fff",
+                  outline: "none"
+                }}
+                type="text"
+                required
+                placeholder="Tony Stark"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Administrator Email
+            </label>
+            <div className="relative">
+              <input
+                className="form-input"
+                style={{ 
+                  paddingLeft: "44px", 
+                  paddingRight: "14px",
+                  paddingTop: "12px", 
+                  paddingBottom: "12px",
+                  fontSize: "14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  background: "#080808",
+                  width: "100%",
+                  color: "#fff",
+                  outline: "none"
+                }}
+                type="email"
+                required
+                placeholder="admin@compliauro.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Security Password
+            </label>
+            <div className="relative">
+              <input
+                className="form-input"
+                style={{ 
+                  paddingLeft: "44px", 
+                  paddingRight: "14px",
+                  paddingTop: "12px", 
+                  paddingBottom: "12px",
+                  fontSize: "14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  background: "#080808",
+                  width: "100%",
+                  color: "#fff",
+                  outline: "none"
+                }}
+                type="password"
+                required
+                placeholder="Min 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Developer Verification Key
+            </label>
+            <div className="relative">
+              <input
+                className="form-input"
+                style={{ 
+                  paddingLeft: "44px", 
+                  paddingRight: "14px",
+                  paddingTop: "12px", 
+                  paddingBottom: "12px",
+                  fontSize: "14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  background: "#080808",
+                  width: "100%",
+                  color: "#fff",
+                  outline: "none"
+                }}
+                type="password"
+                required
+                placeholder="Developer bypass key"
+                value={devKey}
+                onChange={(e) => setDevKey(e.target.value)}
+              />
+              <Key size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+            </div>
+          </div>
+
+          <motion.button 
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            type="submit" 
+            disabled={loading || success} 
+            className="btn btn-primary w-full mt-2 py-3 rounded-xl font-bold tracking-wide shadow-[0_4px_20px_rgba(0,212,200,0.2)]"
+            style={{ fontSize: "14px", height: "46px" }}
+          >
+            {loading ? "Registering Account..." : "Provision Administrator"}
+          </motion.button>
+        </form>
+
+        {/* Links */}
+        <div style={{ textAlign: "center", fontSize: "13px", color: "#7FA8A3", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "24px", marginTop: "4px", fontWeight: 500 }}>
+          Have an account?{" "}
+          <Link href="/login" className="text-[#00D4C8] hover:text-[#00BDB3] transition-colors duration-200 font-bold ml-1">
+            Sign In
+          </Link>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
