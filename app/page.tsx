@@ -26,6 +26,8 @@ import {
   RefreshCw,
   LogOut,
   BookOpen,
+  Library,
+  Upload,
 } from "lucide-react";
 
 /* ────────── Types & Interfaces ────────── */
@@ -291,6 +293,67 @@ const INITIAL_FRAMEWORKS: AuditFrameworkRow[] = [
   { id: "fw-4", code: "HIPAA", name: "HIPAA Security Rule (45 CFR)", version: "v1.2", description: "US federal security standard for protecting electronic protected health information (ePHI).", status: "Draft", controlsCount: 2 }
 ];
 
+const INITIAL_RISK_LIBRARIES = [
+  {
+    id: "rl-1",
+    name: "ISO 27001 Risk Library",
+    version: "2022",
+    risksCount: 3,
+    createdAt: new Date().toISOString(),
+    risks: [
+      {
+        riskCode: "ISO27001-SEC-001",
+        domain: "Cyber",
+        category: "Cyber",
+        description: "Unauthorized access to critical business databases due to weak credential enforcement policies.",
+        controlMapping: "A.9.2 User access management & A.9.4 Password policies",
+        defaultOwner: "CISO"
+      },
+      {
+        riskCode: "ISO27001-BC-002",
+        domain: "Operational Resilience",
+        category: "Operational Resilience",
+        description: "Loss of core system availability due to power outages or network failures at primary data centers.",
+        controlMapping: "A.17.1 Information security continuity",
+        defaultOwner: "Head of Infrastructure"
+      },
+      {
+        riskCode: "ISO27001-HR-003",
+        domain: "People/HR",
+        category: "Insider Risk",
+        description: "Intellectual property theft or unauthorized disclosure by disgruntled employees with excessive privileges.",
+        controlMapping: "A.7.2 During employment & A.8.2.2 Information labelling",
+        defaultOwner: "Chief Human Resources Officer"
+      }
+    ]
+  },
+  {
+    id: "rl-2",
+    name: "NIST CSF 2.0 Risk Library",
+    version: "v2.0",
+    risksCount: 2,
+    createdAt: new Date().toISOString(),
+    risks: [
+      {
+        riskCode: "NIST2-ID-001",
+        domain: "Governance",
+        category: "Risk Assessment",
+        description: "Failure to identify organizational assets leading to unmonitored shadow IT and potential data leakages.",
+        controlMapping: "ID.AM-01 physical and software asset inventory",
+        defaultOwner: "IT Asset Manager"
+      },
+      {
+        riskCode: "NIST2-PR-002",
+        domain: "Protection",
+        category: "Identity Management",
+        description: "Lack of MFA enforcement on legacy applications exposing the core corporate network to credential stuffing attacks.",
+        controlMapping: "PR.AA-01 identity and credential management",
+        defaultOwner: "CISO"
+      }
+    ]
+  }
+];
+
 const MOCK_CONTROLS: Record<string, AuditControlItem[]> = {
   "ISO-27001": [
     { code: "A.5.1", name: "Policies for information security", domain: "Organizational Controls", desc: "Information security policy and topic-specific policies shall be defined, approved by management, published and communicated." },
@@ -332,11 +395,24 @@ export default function SuperAdminDashboard() {
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   /* ────────── Navigation & Status States ────────── */
-  const [activeTab, setActiveTab] = useState<"overview" | "hubs" | "payments" | "frameworks">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "hubs" | "payments" | "frameworks" | "risk-library">("overview");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
+  /* ────────── Risk Libraries States ────────── */
+  const [riskLibraries, setRiskLibraries] = useState<any[]>([]);
+  const [selectedRiskLibId, setSelectedRiskLibId] = useState<string | null>(null);
+  const [isNewRiskLibOpen, setIsNewRiskLibOpen] = useState(false);
+  const [riskLibSearchQuery, setRiskLibSearchQuery] = useState("");
+  const [newRiskLibForm, setNewRiskLibForm] = useState({
+    name: "",
+    version: "",
+    jsonContent: "",
+    file: null as File | null,
+    uploadType: "file" as "file" | "json"
+  });
 
   /* ────────── Auth Verification Guard ────────── */
   useEffect(() => {
@@ -601,6 +677,302 @@ export default function SuperAdminDashboard() {
     }
   }, [getAuthHeaders]);
 
+  const loadRiskLibraries = useCallback(async () => {
+    try {
+      const res = await fetch("http://localhost:8082/superadmin/risk-library", {
+        headers: getAuthHeaders(),
+      });
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem("token");
+        router.push("/login");
+        return;
+      }
+      if (res.ok) {
+        const body = await res.json();
+        if (body?.data && Array.isArray(body.data)) {
+          setRiskLibraries(body.data);
+          setIsConnected(true);
+          localStorage.setItem("compliauro_risk_libraries", JSON.stringify(body.data));
+          return;
+        }
+      }
+      throw new Error("Risk library API failed");
+    } catch (err) {
+      console.warn("Failed to load risk libraries from backend, using localStorage/mocks");
+      const stored = localStorage.getItem("compliauro_risk_libraries");
+      if (stored) {
+        setRiskLibraries(JSON.parse(stored));
+      } else {
+        setRiskLibraries(INITIAL_RISK_LIBRARIES);
+        localStorage.setItem("compliauro_risk_libraries", JSON.stringify(INITIAL_RISK_LIBRARIES));
+      }
+    }
+  }, [getAuthHeaders, router]);
+
+  const handleOnboardRiskLibSubmit = async () => {
+    if (!newRiskLibForm.name || !newRiskLibForm.version) {
+      alert("Name and version are required.");
+      return;
+    }
+
+    if (newRiskLibForm.uploadType === "file" && !newRiskLibForm.file) {
+      alert("Please select a file to upload.");
+      return;
+    }
+
+    const name = newRiskLibForm.name;
+    const version = newRiskLibForm.version;
+
+    if (isConnected) {
+      setLoading(true);
+      try {
+        let res;
+        if (newRiskLibForm.uploadType === "file") {
+          const formData = new FormData();
+          formData.append("file", newRiskLibForm.file!);
+          formData.append("name", name);
+          formData.append("version", version);
+
+          const authHeaders = getAuthHeaders();
+          const headers = { ...authHeaders };
+          delete (headers as any)["Content-Type"];
+
+          res = await fetch("http://localhost:8082/superadmin/risk-library/upload", {
+            method: "POST",
+            headers,
+            body: formData
+          });
+        } else {
+          // JSON Mode
+          let parsedRisks = [];
+          try {
+            if (newRiskLibForm.jsonContent.trim()) {
+              const parsed = JSON.parse(newRiskLibForm.jsonContent);
+              parsedRisks = Array.isArray(parsed) ? parsed : (parsed.risks || []);
+            }
+          } catch (e: any) {
+            alert("Invalid JSON format: " + e.message);
+            setLoading(false);
+            return;
+          }
+
+          res = await fetch("http://localhost:8082/superadmin/risk-library", {
+            method: "POST",
+            headers: {
+              ...getAuthHeaders(),
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ name, version, risks: parsedRisks })
+          });
+        }
+
+        if (res.ok) {
+          alert("Risk library registered successfully.");
+          setIsNewRiskLibOpen(false);
+          loadRiskLibraries();
+          setNewRiskLibForm({ name: "", version: "", jsonContent: "", file: null, uploadType: "file" });
+        } else {
+          const body = await res.json();
+          alert("Upload failed: " + (body.message || "Unknown error"));
+        }
+      } catch (err) {
+        alert("Network error occurred.");
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Mock mode
+      if (newRiskLibForm.uploadType === "file") {
+        const file = newRiskLibForm.file!;
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+        if (ext === ".csv") {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const text = event.target?.result as string;
+            if (!text) return;
+            const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+            if (lines.length === 0) return;
+
+            const headerLine = lines[0];
+            const splitCsv = (lineStr: string) => {
+              const result = [];
+              let inQuotes = false;
+              let curField = "";
+              for (let i = 0; i < lineStr.length; i++) {
+                const c = lineStr.charAt(i);
+                if (c === '"') {
+                  inQuotes = !inQuotes;
+                } else if (c === ',' && !inQuotes) {
+                  result.push(curField);
+                  curField = "";
+                } else {
+                  curField += c;
+                }
+              }
+              result.push(curField);
+              return result;
+            };
+
+            const headers = splitCsv(headerLine);
+            let codeCol = 0, domainCol = 1, catCol = 2, descCol = 3, ctrlCol = 4, ownerCol = 5;
+            let headersFound = false;
+
+            headers.forEach((h, idx) => {
+              const val = h.trim().toLowerCase();
+              if (val.includes("code") || val === "id") {
+                codeCol = idx; headersFound = true;
+              } else if (val.includes("domain")) {
+                domainCol = idx; headersFound = true;
+              } else if (val.includes("category")) {
+                catCol = idx; headersFound = true;
+              } else if (val.includes("description") || val === "risk" || val === "details") {
+                descCol = idx; headersFound = true;
+              } else if (val.includes("control") || val.includes("mapping")) {
+                ctrlCol = idx; headersFound = true;
+              } else if (val.includes("owner")) {
+                ownerCol = idx; headersFound = true;
+              }
+            });
+
+            const parsedRisks: any[] = [];
+            const dataLines = headersFound ? lines.slice(1) : lines;
+            dataLines.forEach((line, rIdx) => {
+              const fields = splitCsv(line);
+              const desc = fields[descCol] || "";
+              if (!desc.trim()) return;
+
+              parsedRisks.push({
+                id: `rl-item-${Date.now()}-${rIdx}`,
+                riskCode: fields[codeCol] || `RISK-${rIdx + 1}`,
+                domain: fields[domainCol] || "Cyber",
+                category: fields[catCol] || "Cyber",
+                description: desc,
+                controlMapping: fields[ctrlCol] || "",
+                defaultOwner: fields[ownerCol] || "CISO"
+              });
+            });
+
+            const newLib = {
+              id: "rl-" + Date.now(),
+              name,
+              version,
+              risksCount: parsedRisks.length,
+              createdAt: new Date().toISOString(),
+              risks: parsedRisks
+            };
+
+            const updated = [newLib, ...riskLibraries];
+            setRiskLibraries(updated);
+            localStorage.setItem("compliauro_risk_libraries", JSON.stringify(updated));
+            alert("Risk library uploaded and parsed successfully (Mock Mode CSV).");
+            setIsNewRiskLibOpen(false);
+            setNewRiskLibForm({ name: "", version: "", jsonContent: "", file: null, uploadType: "file" });
+          };
+          reader.readAsText(file);
+        } else {
+          // Mock XLSX / PDF parser fallback
+          const mockRisks = [
+            {
+              id: `rl-item-${Date.now()}-0`,
+              riskCode: `${name.replace(/\s+/g, '-').toUpperCase()}-001`,
+              domain: "Cyber",
+              category: "Cyber",
+              description: `Sample parsed threat scenario from uploaded ${file.name} concerning unauthorized cloud access.`,
+              controlMapping: "PR.AC-1",
+              defaultOwner: "CISO"
+            },
+            {
+              id: `rl-item-${Date.now()}-1`,
+              riskCode: `${name.replace(/\s+/g, '-').toUpperCase()}-002`,
+              domain: "Operational",
+              category: "Process",
+              description: `Business continuity disruption risk parsed from ${file.name} addressing power outage recovery constraints.`,
+              controlMapping: "CP-2",
+              defaultOwner: "Head of Infrastructure"
+            }
+          ];
+
+          const newLib = {
+            id: "rl-" + Date.now(),
+            name,
+            version,
+            risksCount: mockRisks.length,
+            createdAt: new Date().toISOString(),
+            risks: mockRisks
+          };
+
+          const updated = [newLib, ...riskLibraries];
+          setRiskLibraries(updated);
+          localStorage.setItem("compliauro_risk_libraries", JSON.stringify(updated));
+          alert(`Risk library uploaded and simulated successfully (Mock Mode ${ext.toUpperCase()}).`);
+          setIsNewRiskLibOpen(false);
+          setNewRiskLibForm({ name: "", version: "", jsonContent: "", file: null, uploadType: "file" });
+        }
+      } else {
+        // JSON mode
+        let parsedRisks = [];
+        try {
+          if (newRiskLibForm.jsonContent.trim()) {
+            const parsed = JSON.parse(newRiskLibForm.jsonContent);
+            parsedRisks = Array.isArray(parsed) ? parsed : (parsed.risks || []);
+          }
+        } catch (e: any) {
+          alert("Invalid JSON format: " + e.message);
+          return;
+        }
+
+        const newLib = {
+          id: "rl-" + Date.now(),
+          name,
+          version,
+          risksCount: parsedRisks.length,
+          createdAt: new Date().toISOString(),
+          risks: parsedRisks.map((r: any, idx: number) => ({
+            ...r,
+            id: `rl-item-${Date.now()}-${idx}`
+          }))
+        };
+
+        const updated = [newLib, ...riskLibraries];
+        setRiskLibraries(updated);
+        localStorage.setItem("compliauro_risk_libraries", JSON.stringify(updated));
+        alert("Risk library registered successfully (Mock Mode JSON).");
+        setIsNewRiskLibOpen(false);
+        setNewRiskLibForm({ name: "", version: "", jsonContent: "", file: null, uploadType: "file" });
+      }
+    }
+  };
+
+  const handleDeleteRiskLib = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this risk library?")) return;
+
+    if (isConnected) {
+      try {
+        const res = await fetch(`http://localhost:8082/superadmin/risk-library/${id}`, {
+          method: "DELETE",
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          alert("Risk library deleted successfully.");
+          setSelectedRiskLibId(null);
+          loadRiskLibraries();
+        } else {
+          alert("Failed to delete risk library.");
+        }
+      } catch (err) {
+        alert("Network error occurred.");
+      }
+    } else {
+      // Mock mode delete
+      const updated = riskLibraries.filter(lib => lib.id !== id);
+      setRiskLibraries(updated);
+      localStorage.setItem("compliauro_risk_libraries", JSON.stringify(updated));
+      setSelectedRiskLibId(null);
+      alert("Risk library deleted (Mock Mode).");
+    }
+  };
+
   useEffect(() => {
     if (!selectedFrameworkId) return;
     const fw = frameworks.find(f => f.code === selectedFrameworkId);
@@ -648,10 +1020,19 @@ export default function SuperAdminDashboard() {
       loadPayments();
     } else if (activeTab === "frameworks") {
       loadFrameworks();
+    } else if (activeTab === "risk-library") {
+      loadRiskLibraries();
     }
-  }, [activeTab, loadHubs, loadPayments, loadFrameworks]);
+  }, [activeTab, loadHubs, loadPayments, loadFrameworks, loadRiskLibraries]);
 
   /* ────────── Memos & Filters ────────── */
+  const filteredRiskLibraries = useMemo(() => {
+    return riskLibraries.filter(lib =>
+      lib.name.toLowerCase().includes(riskLibSearchQuery.toLowerCase()) ||
+      (lib.version && lib.version.toLowerCase().includes(riskLibSearchQuery.toLowerCase()))
+    );
+  }, [riskLibraries, riskLibSearchQuery]);
+
   const filteredHubs = useMemo(() => {
     return hubs.filter(h => 
       h.name.toLowerCase().includes(hubSearchQuery.toLowerCase()) || 
@@ -1030,6 +1411,16 @@ export default function SuperAdminDashboard() {
               >
                 <BookOpen size={16} style={{ flexShrink: 0 }} />
                 {!isSidebarCollapsed && <span className="fade-transition" style={{ whiteSpace: "nowrap" }}>Audit Frameworks</span>}
+              </button>
+
+              <button
+                onClick={() => setActiveTab("risk-library")}
+                className={`btn ${activeTab === "risk-library" ? "btn-primary" : "btn-secondary"}`}
+                style={{ width: "100%", justifyContent: isSidebarCollapsed ? "center" : "flex-start", gap: "10px", border: "none", background: activeTab === "risk-library" ? "" : "transparent", padding: isSidebarCollapsed ? "10px 0" : "8px 16px" }}
+                title={isSidebarCollapsed ? "Risk Library" : undefined}
+              >
+                <Library size={16} style={{ flexShrink: 0 }} />
+                {!isSidebarCollapsed && <span className="fade-transition" style={{ whiteSpace: "nowrap" }}>Risk Library</span>}
               </button>
 
               <button
@@ -1546,6 +1937,191 @@ export default function SuperAdminDashboard() {
             </div>
           )}
 
+          {/* TAB PANEL 5: RISK LIBRARIES */}
+          {activeTab === "risk-library" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              
+              {/* KPIs Grid */}
+              <div className="overview-kpi-grid">
+                <div className="kpi-card" style={{ borderLeft: "3px solid #00D4C8" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span className="kpi-label">Risk Libraries Registered</span>
+                    <Library size={16} style={{ color: "#00D4C8", opacity: 0.8 }} />
+                  </div>
+                  <span className="kpi-value" style={{ color: "#00D4C8", marginTop: "2px" }}>
+                    {riskLibraries.length}
+                  </span>
+                </div>
+                <div className="kpi-card" style={{ borderLeft: "3px solid #22c55e" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span className="kpi-label">Total Custom Risks</span>
+                    <Shield size={16} style={{ color: "#22c55e", opacity: 0.8 }} />
+                  </div>
+                  <span className="kpi-value" style={{ color: "#22c55e", marginTop: "2px" }}>
+                    {riskLibraries.reduce((acc, curr) => acc + (curr.risksCount || 0), 0)}
+                  </span>
+                </div>
+                <div className="kpi-card" style={{ borderLeft: "3px solid #fbbf24" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span className="kpi-label">Support Formats</span>
+                    <Activity size={16} style={{ color: "#fbbf24", opacity: 0.8 }} />
+                  </div>
+                  <span className="kpi-value" style={{ color: "#fbbf24", marginTop: "2px", fontSize: "16px", fontWeight: 700 }}>
+                    XLSX, CSV, PDF, JSON
+                  </span>
+                </div>
+              </div>
+
+              {/* Search & Actions Toolbar */}
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", background: "#0a0a0a", border: "1px solid rgba(255, 255, 255, 0.04)", padding: "10px 16px", borderRadius: "12px", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, maxWidth: "400px" }}>
+                  <Search size={16} color="#7FA8A3" />
+                  <input
+                    className="form-input"
+                    style={{ border: "none", background: "none", fontSize: "13px", padding: 0 }}
+                    placeholder="Search risk libraries by name or version..."
+                    value={riskLibSearchQuery}
+                    onChange={e => setRiskLibSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button
+                  className="btn btn-primary"
+                  style={{ display: "inline-flex", gap: "6px", fontSize: "12px", padding: "8px 14px", height: "36px" }}
+                  onClick={() => setIsNewRiskLibOpen(true)}
+                >
+                  <Plus size={14} /> Add Risk Library
+                </button>
+              </div>
+
+              {/* Libraries Catalog Table */}
+              <div style={{ display: "grid", gridTemplateColumns: selectedRiskLibId ? "3fr 2fr" : "1fr", gap: "16px" }}>
+                
+                {/* List Container */}
+                <div className="admin-table-container">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Library Framework Name</th>
+                        <th>Version</th>
+                        <th>Created At</th>
+                        <th>Risks Count</th>
+                        <th style={{ textAlign: "right" }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRiskLibraries.map(lib => (
+                        <tr key={lib.id} style={{ background: selectedRiskLibId === lib.id ? "rgba(0, 212, 200, 0.02)" : "" }}>
+                          <td style={{ fontWeight: 600, color: "#fff" }}>{lib.name}</td>
+                          <td>
+                            <span style={{ fontSize: "11px", fontWeight: 700, background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: "4px" }}>
+                              v{lib.version}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: "12px", color: "#7FA8A3" }}>
+                            {new Date(lib.createdAt).toLocaleDateString()}
+                          </td>
+                          <td style={{ fontWeight: 700, color: "#00D4C8" }}>
+                            {lib.risksCount || (lib.risks ? lib.risks.length : 0)} risks
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", gap: "8px" }}>
+                              <button
+                                className="btn btn-secondary"
+                                style={{ padding: "4px 8px", fontSize: "11px", display: "inline-flex", gap: "4px" }}
+                                onClick={() => setSelectedRiskLibId(selectedRiskLibId === lib.id ? null : lib.id)}
+                              >
+                                <Eye size={12} /> {selectedRiskLibId === lib.id ? "Close Risks" : "View Risks"}
+                              </button>
+                              <button
+                                className="btn"
+                                style={{ padding: "4px 8px", fontSize: "11px", display: "inline-flex", gap: "4px", background: "rgba(239, 68, 68, 0.1)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.2)" }}
+                                onClick={() => handleDeleteRiskLib(lib.id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredRiskLibraries.length === 0 && (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: "center", padding: "30px", color: "#7FA8A3" }}>
+                            No risk libraries registered. Add one to get started.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Risks Side Detail Panel */}
+                {selectedRiskLibId && (
+                  (() => {
+                    const selectedLib = riskLibraries.find(lib => lib.id === selectedRiskLibId);
+                    if (!selectedLib) return null;
+                    return (
+                      <div className="glass-panel" style={{ padding: "16px", display: "flex", flexDirection: "column", justifyContent: "flex-start", height: "fit-content", maxHeight: "70vh", overflowY: "auto" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(0, 212, 200, 0.1)", paddingBottom: "10px", marginBottom: "12px" }}>
+                          <div>
+                            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: 0 }}>
+                              {selectedLib.name}
+                            </h3>
+                            <span style={{ fontSize: "11px", color: "#7FA8A3" }}>
+                              Version {selectedLib.version} • {selectedLib.risksCount || (selectedLib.risks ? selectedLib.risks.length : 0)} threats
+                            </span>
+                          </div>
+                          <button 
+                            className="findings-panel-close" 
+                            style={{ position: "static", padding: "4px" }}
+                            onClick={() => setSelectedRiskLibId(null)}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                        
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                          {selectedLib.risks && selectedLib.risks.map((risk: any, rIdx: number) => (
+                            <div key={risk.id || rIdx} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", padding: "10px 12px", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span style={{ fontSize: "11px", fontFamily: "monospace", fontWeight: 700, background: "rgba(0, 212, 200, 0.1)", color: "#00D4C8", padding: "2px 6px", borderRadius: "4px" }}>
+                                  {risk.riskCode || risk.code}
+                                </span>
+                                <span style={{ fontSize: "10.5px", color: "#7FA8A3", fontWeight: 500 }}>
+                                  {risk.domain}
+                                </span>
+                              </div>
+                              <p style={{ fontSize: "12px", color: "#fff", margin: 0, fontWeight: 500 }}>
+                                {risk.description}
+                              </p>
+                              {risk.controlMapping && (
+                                <div style={{ fontSize: "11px", color: "#00D4C8", marginTop: "2px", display: "flex", gap: "4px", alignItems: "center" }}>
+                                  <Shield size={10} />
+                                  <span>Mapped: {risk.controlMapping}</span>
+                                </div>
+                              )}
+                              {risk.defaultOwner && (
+                                <div style={{ fontSize: "11px", color: "#7FA8A3", display: "flex", gap: "4px", alignItems: "center" }}>
+                                  <span>Owner: {risk.defaultOwner}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {(!selectedLib.risks || selectedLib.risks.length === 0) && (
+                            <div style={{ textAlign: "center", padding: "20px", color: "#7FA8A3", fontSize: "12px" }}>
+                              No risk items defined inside this library framework.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
+
+              </div>
+
+            </div>
+          )}
+
 
 
         </main>
@@ -1912,6 +2488,196 @@ export default function SuperAdminDashboard() {
               <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(0, 212, 200, 0.15)", display: "flex", justifyContent: "flex-end", gap: "10px", background: "#060606" }}>
                 <button className="panel-action" style={{ padding: "8px 16px" }} onClick={() => setIsNewFrameworkOpen(false)}>Cancel</button>
                 <button className="btn btn-primary" onClick={handleCreateFrameworkSubmit}>Register Framework</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─────────────────────────────────────────────────────────────────
+          MODAL: ADD RISK LIBRARY (FILE OR JSON UPLOAD)
+          ───────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isNewRiskLibOpen && (
+          <div className="modal-backdrop">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-panel"
+              style={{ width: "90%", maxWidth: "680px", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", padding: 0 }}
+            >
+              <div className="modal-header" style={{ padding: "20px 24px", borderBottom: "1px solid rgba(0, 212, 200, 0.15)" }}>
+                <h2 style={{ fontSize: "16px", fontWeight: 700 }}>Add Risk Library Framework</h2>
+                <button className="findings-panel-close" onClick={() => setIsNewRiskLibOpen(false)}><X size={18} /></button>
+              </div>
+
+              <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: "14px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div className="form-group">
+                    <label className="form-label">Library Name</label>
+                    <input
+                      className="form-input"
+                      value={newRiskLibForm.name}
+                      onChange={e => setNewRiskLibForm(p => ({ ...p, name: e.target.value }))}
+                      placeholder="E.g., NIST CSF 2.0 Risk Library"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Version</label>
+                    <input
+                      className="form-input"
+                      value={newRiskLibForm.version}
+                      onChange={e => setNewRiskLibForm(p => ({ ...p, version: e.target.value }))}
+                      placeholder="E.g., 2.0"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", background: "rgba(255, 255, 255, 0.03)", borderRadius: "8px", padding: "4px", border: "1px solid rgba(255, 255, 255, 0.08)", marginTop: "4px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewRiskLibForm(p => ({ ...p, uploadType: "file" }))}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "none",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      background: newRiskLibForm.uploadType === "file" ? "#00D4C8" : "transparent",
+                      color: newRiskLibForm.uploadType === "file" ? "#000000" : "#7FA8A3"
+                    }}
+                  >
+                    File Upload (.xlsx, .pdf, .csv)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewRiskLibForm(p => ({ ...p, uploadType: "json" }))}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "none",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      background: newRiskLibForm.uploadType === "json" ? "#00D4C8" : "transparent",
+                      color: newRiskLibForm.uploadType === "json" ? "#000000" : "#7FA8A3"
+                    }}
+                  >
+                    JSON Editor
+                  </button>
+                </div>
+
+                {newRiskLibForm.uploadType === "file" ? (
+                  <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <label className="form-label">Select File</label>
+                    <div 
+                      style={{
+                        border: "2px dashed rgba(0, 212, 200, 0.25)",
+                        borderRadius: "8px",
+                        padding: "32px 20px",
+                        textAlign: "center",
+                        cursor: "pointer",
+                        background: "rgba(0, 212, 200, 0.02)",
+                        transition: "all 0.2s ease",
+                        position: "relative"
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const files = e.dataTransfer.files;
+                        if (files && files.length > 0) {
+                          setNewRiskLibForm(p => ({ ...p, file: files[0] }));
+                        }
+                      }}
+                      onClick={() => {
+                        document.getElementById("risk-lib-file-input")?.click();
+                      }}
+                    >
+                      <input 
+                        id="risk-lib-file-input"
+                        type="file"
+                        accept=".xlsx,.xls,.csv,.pdf"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const files = e.target.files;
+                          if (files && files.length > 0) {
+                            setNewRiskLibForm(p => ({ ...p, file: files[0] }));
+                          }
+                        }}
+                      />
+                      <div style={{ display: "flex", justifyContent: "center" }}>
+                        <Upload size={32} style={{ color: "#00D4C8", marginBottom: "12px", opacity: 0.8 }} />
+                      </div>
+                      {newRiskLibForm.file ? (
+                        <div>
+                          <p style={{ color: "#ffffff", fontSize: "14px", fontWeight: 600, margin: 0 }}>
+                            {newRiskLibForm.file.name}
+                          </p>
+                          <p style={{ color: "#7FA8A3", fontSize: "12px", margin: "4px 0 0 0" }}>
+                            {(newRiskLibForm.file.size / 1024).toFixed(1)} KB • Click or drag to replace
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p style={{ color: "#ffffff", fontSize: "14px", fontWeight: 500, margin: 0 }}>
+                            Drag & drop your file here, or <span style={{ color: "#00D4C8", textDecoration: "underline" }}>browse</span>
+                          </p>
+                          <p style={{ color: "#7FA8A3", fontSize: "12px", margin: "4px 0 0 0" }}>
+                            Supports Excel (.xlsx, .xls), CSV (.csv), or PDF (.pdf)
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Risks JSON Content</span>
+                      <button 
+                        type="button"
+                        className="btn" 
+                        style={{ height: "auto", padding: "2px 6px", fontSize: "10px", background: "rgba(255,255,255,0.05)" }}
+                        onClick={() => {
+                          const example = [
+                            {
+                              "riskCode": "NIST-SEC-001",
+                              "domain": "Cyber",
+                              "category": "Cyber",
+                              "description": "Unauthorized access to staging databases during testing due to poor separation of duties.",
+                              "controlMapping": "PR.AC-1 Access Control",
+                              "defaultOwner": "CISO"
+                            }
+                          ];
+                          setNewRiskLibForm(p => ({ ...p, jsonContent: JSON.stringify(example, null, 2) }));
+                        }}
+                      >
+                        Load Sample Example
+                      </button>
+                    </label>
+                    <textarea
+                      className="form-input"
+                      rows={12}
+                      value={newRiskLibForm.jsonContent}
+                      onChange={e => setNewRiskLibForm(p => ({ ...p, jsonContent: e.target.value }))}
+                      placeholder='[\n  {\n    "riskCode": "CODE-001",\n    "domain": "Cyber",\n    "category": "Cyber",\n    "description": "Description...",\n    "controlMapping": "Control mapping...",\n    "defaultOwner": "Owner..."\n  }\n]'
+                      style={{ fontFamily: "monospace", fontSize: "12px", background: "#050505", border: "1px solid rgba(255,255,255,0.08)", color: "#00D4C8" }}
+                    />
+                    <span style={{ fontSize: "11px", color: "#7FA8A3", marginTop: "4px" }}>
+                      Provide a JSON array containing risk library items. Copy the sample example to get started.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(0, 212, 200, 0.15)", display: "flex", justifyContent: "flex-end", gap: "10px", background: "#060606" }}>
+                <button className="panel-action" style={{ padding: "8px 16px" }} onClick={() => setIsNewRiskLibOpen(false)}>Cancel</button>
+                <button className="btn btn-primary" onClick={handleOnboardRiskLibSubmit}>Register Risk Library</button>
               </div>
             </motion.div>
           </div>
