@@ -29,6 +29,7 @@ import {
   Library,
   Upload,
 } from "lucide-react";
+import { API_BASE_URL } from "./config";
 
 /* ────────── Types & Interfaces ────────── */
 interface DashboardOverview {
@@ -528,7 +529,7 @@ export default function SuperAdminDashboard() {
     const token = localStorage.getItem("token");
     if (token && isConnected) {
       try {
-        await fetch("http://localhost:8082/superadmin/logout", {
+        await fetch(`${API_BASE_URL}/superadmin/logout`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -547,7 +548,7 @@ export default function SuperAdminDashboard() {
   /* ────────── API Fetch Queries ────────── */
   const loadOverview = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8082/superadmin/dashboard/overview", {
+      const res = await fetch(`${API_BASE_URL}/superadmin/dashboard/overview`, {
         headers: getAuthHeaders(),
       });
       if (res.status === 401 || res.status === 403) {
@@ -575,7 +576,7 @@ export default function SuperAdminDashboard() {
 
   const loadHubs = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8082/superadmin/dashboard/hubs?limit=50", {
+      const res = await fetch(`${API_BASE_URL}/superadmin/dashboard/hubs?limit=50`, {
         headers: getAuthHeaders(),
       });
       if (res.status === 401 || res.status === 403) {
@@ -600,7 +601,7 @@ export default function SuperAdminDashboard() {
 
   const loadPayments = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8082/superadmin/dashboard/payments?limit=50", {
+      const res = await fetch(`${API_BASE_URL}/superadmin/dashboard/payments?limit=50`, {
         headers: getAuthHeaders(),
       });
       if (res.status === 401 || res.status === 403) {
@@ -625,7 +626,7 @@ export default function SuperAdminDashboard() {
 
   const loadRequestLogs = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8082/superadmin/dashboard/logs?limit=50", {
+      const res = await fetch(`${API_BASE_URL}/superadmin/dashboard/logs?limit=50`, {
         headers: getAuthHeaders(),
       });
       if (res.status === 401 || res.status === 403) {
@@ -650,7 +651,7 @@ export default function SuperAdminDashboard() {
 
   const loadFrameworks = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8082/superadmin/dashboard/frameworks", {
+      const res = await fetch(`${API_BASE_URL}/superadmin/dashboard/frameworks`, {
         headers: getAuthHeaders(),
       });
       if (res.status === 401 || res.status === 403) {
@@ -679,7 +680,7 @@ export default function SuperAdminDashboard() {
 
   const loadRiskLibraries = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8082/superadmin/risk-library", {
+      const res = await fetch(`${API_BASE_URL}/superadmin/risk-library`, {
         headers: getAuthHeaders(),
       });
       if (res.status === 401 || res.status === 403) {
@@ -737,7 +738,7 @@ export default function SuperAdminDashboard() {
           const headers = { ...authHeaders };
           delete (headers as any)["Content-Type"];
 
-          res = await fetch("http://localhost:8082/superadmin/risk-library/upload", {
+          res = await fetch(`${API_BASE_URL}/superadmin/risk-library/upload`, {
             method: "POST",
             headers,
             body: formData
@@ -756,7 +757,7 @@ export default function SuperAdminDashboard() {
             return;
           }
 
-          res = await fetch("http://localhost:8082/superadmin/risk-library", {
+          res = await fetch(`${API_BASE_URL}/superadmin/risk-library`, {
             method: "POST",
             headers: {
               ...getAuthHeaders(),
@@ -949,7 +950,7 @@ export default function SuperAdminDashboard() {
 
     if (isConnected) {
       try {
-        const res = await fetch(`http://localhost:8082/superadmin/risk-library/${id}`, {
+        const res = await fetch(`${API_BASE_URL}/superadmin/risk-library/${id}`, {
           method: "DELETE",
           headers: getAuthHeaders()
         });
@@ -982,7 +983,7 @@ export default function SuperAdminDashboard() {
 
     const fetchControls = async () => {
       try {
-        const res = await fetch(`http://localhost:8082/api/frameworks/${fw.id}/controls`, {
+        const res = await fetch(`${API_BASE_URL}/api/frameworks/${fw.id}/controls`, {
           headers: getAuthHeaders(),
         });
         if (res.ok) {
@@ -1091,7 +1092,7 @@ export default function SuperAdminDashboard() {
 
     if (isConnected) {
       try {
-        const res = await fetch("http://localhost:8082/superadmin/hubs", {
+        const res = await fetch(`${API_BASE_URL}/superadmin/hubs`, {
           method: "POST",
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -1171,7 +1172,7 @@ export default function SuperAdminDashboard() {
     if (isConnected) {
       try {
         // 1. Status Update
-        const resStatus = await fetch(`http://localhost:8082/superadmin/hubs/${selectedHubId}/status`, {
+        const resStatus = await fetch(`${API_BASE_URL}/superadmin/hubs/${selectedHubId}/status`, {
           method: "PATCH",
           headers: getAuthHeaders(),
           body: JSON.stringify({ status: editHubForm.status }),
@@ -1183,14 +1184,14 @@ export default function SuperAdminDashboard() {
         }
 
         // 2. Plan Update
-        await fetch(`http://localhost:8082/superadmin/hubs/${selectedHubId}/subscription`, {
+        await fetch(`${API_BASE_URL}/superadmin/hubs/${selectedHubId}/subscription`, {
           method: "PATCH",
           headers: getAuthHeaders(),
           body: JSON.stringify({ plan: editHubForm.plan }),
         });
 
         // 3. Modules Update
-        await fetch(`http://localhost:8082/superadmin/hubs/${selectedHubId}/modules`, {
+        await fetch(`${API_BASE_URL}/superadmin/hubs/${selectedHubId}/modules`, {
           method: "PATCH",
           headers: getAuthHeaders(),
           body: JSON.stringify({ modulesAssigned: editHubForm.modules }),
@@ -1262,7 +1263,7 @@ export default function SuperAdminDashboard() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const res = await fetch("http://localhost:8082/superadmin/frameworks/upload", {
+      const res = await fetch(`${API_BASE_URL}/superadmin/frameworks/upload`, {
         method: "POST",
         headers,
         body: formData,

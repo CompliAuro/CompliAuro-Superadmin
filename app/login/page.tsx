@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Shield, Lock, Mail, Zap, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { API_BASE_URL } from "../config";
 
 function parseJwt(token: string) {
   try {
@@ -53,7 +54,7 @@ export default function SuperAdminLogin() {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:8082/superadmin/login", {
+      const res = await fetch(`${API_BASE_URL}/superadmin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

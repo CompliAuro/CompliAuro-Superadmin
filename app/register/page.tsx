@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Shield, Lock, Mail, User, Key, Zap } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { API_BASE_URL } from "../config";
 
 function parseJwt(token: string) {
   try {
@@ -55,7 +56,7 @@ export default function SuperAdminRegister() {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:8082/superadmin/register", {
+      const res = await fetch(`${API_BASE_URL}/superadmin/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password, devKey }),
