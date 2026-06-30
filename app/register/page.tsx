@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Lock, Mail, User, Key, Zap } from "lucide-react";
+import { Shield, Lock, Mail, User, Key, Zap, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_BASE_URL } from "../config";
@@ -29,6 +29,7 @@ export default function SuperAdminRegister() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [devKey, setDevKey] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -163,8 +164,11 @@ export default function SuperAdminRegister() {
               exit={{ opacity: 0, height: 0 }}
               style={{ overflow: "hidden" }}
             >
-              <div className="flex items-start gap-3 p-3.5 rounded-xl border border-[rgba(34,197,94,0.2)] bg-[rgba(34,197,94,0.03)] text-xs text-[#22c55e] shadow-[0_4px_12px_rgba(34,197,94,0.05)]">
-                <Zap size={14} className="mt-0.5 shrink-0" color="#22c55e" />
+              <div 
+                className="flex items-center gap-3 rounded-xl border border-[rgba(34,197,94,0.2)] bg-[rgba(34,197,94,0.03)] text-xs text-[#22c55e] shadow-[0_4px_12px_rgba(34,197,94,0.05)]"
+                style={{ padding: "12px 14px" }}
+              >
+                <Zap size={14} className="shrink-0" color="#22c55e" />
                 <span className="font-medium leading-relaxed">Registration successful! Redirecting to login portal...</span>
               </div>
             </motion.div>
@@ -180,8 +184,11 @@ export default function SuperAdminRegister() {
               exit={{ opacity: 0, height: 0 }}
               style={{ overflow: "hidden" }}
             >
-              <div className="flex items-start gap-3 p-3.5 rounded-xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.03)] text-xs text-[#ef4444] shadow-[0_4px_12px_rgba(239,68,68,0.05)]">
-                <Zap size={14} className="mt-0.5 shrink-0" />
+              <div 
+                className="flex items-center gap-3 rounded-xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.03)] text-xs text-[#ef4444] shadow-[0_4px_12px_rgba(239,68,68,0.05)]"
+                style={{ padding: "12px 14px" }}
+              >
+                <Zap size={14} className="shrink-0" />
                 <span className="font-medium leading-relaxed">{error}</span>
               </div>
             </motion.div>
@@ -242,7 +249,7 @@ export default function SuperAdminRegister() {
                 }}
                 type="email"
                 required
-                placeholder="admin@compliauro.com"
+                placeholder="xyz@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -259,7 +266,7 @@ export default function SuperAdminRegister() {
                 className="form-input"
                 style={{ 
                   paddingLeft: "44px", 
-                  paddingRight: "14px",
+                  paddingRight: "44px",
                   paddingTop: "12px", 
                   paddingBottom: "12px",
                   fontSize: "14px",
@@ -270,13 +277,21 @@ export default function SuperAdminRegister() {
                   color: "#fff",
                   outline: "none"
                 }}
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 placeholder="Min 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
               <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] hover:text-white transition-colors duration-200"
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
