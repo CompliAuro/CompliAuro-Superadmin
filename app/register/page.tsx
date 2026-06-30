@@ -90,7 +90,7 @@ export default function SuperAdminRegister() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030303] flex items-center justify-center p-6 font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6 font-sans relative overflow-hidden">
       {/* Decorative Animated Glow Orbs */}
       <motion.div
         animate={{
@@ -103,7 +103,7 @@ export default function SuperAdminRegister() {
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="absolute -top-[120px] -right-[120px] w-[350px] h-[350px] bg-[rgba(0,212,200,0.15)] blur-[90px] rounded-full pointer-events-none"
+        className="absolute -top-[120px] -right-[120px] w-[350px] h-[350px] bg-[rgba(0,168,159,0.08)] blur-[90px] rounded-full pointer-events-none"
       />
       <motion.div
         animate={{
@@ -116,7 +116,7 @@ export default function SuperAdminRegister() {
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="absolute -bottom-[150px] -left-[150px] w-[400px] h-[400px] bg-[rgba(168,85,247,0.12)] blur-[100px] rounded-full pointer-events-none"
+        className="absolute -bottom-[150px] -left-[150px] w-[400px] h-[400px] bg-[rgba(168,85,247,0.06)] blur-[100px] rounded-full pointer-events-none"
       />
 
       <motion.div
@@ -125,8 +125,8 @@ export default function SuperAdminRegister() {
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="w-full max-w-[460px] glass-panel relative overflow-hidden"
         style={{
-          border: "1px solid rgba(0, 212, 200, 0.12)",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 212, 200, 0.03)",
+          border: "1px solid var(--border-color)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.1), 0 0 40px rgba(0, 168, 159, 0.03)",
           padding: "40px 36px 36px 36px",
           borderRadius: "16px",
           display: "flex",
@@ -135,21 +135,21 @@ export default function SuperAdminRegister() {
         }}
       >
         {/* Glow accent bar at the top */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00D4C8] to-transparent opacity-80" />
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--primary-color)] to-transparent opacity-80" />
 
         {/* Logo Header */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", textAlign: "center" }}>
           <motion.div 
             whileHover={{ scale: 1.05, rotate: 5 }}
-            className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00D4C8] to-[#00A89E] flex items-center justify-center text-[#050505] shadow-[0_0_20px_rgba(0,212,200,0.3)] cursor-pointer"
+            className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--primary-color)] to-[var(--primary-dark)] flex items-center justify-center text-white shadow-[0_0_20px_rgba(0,168,159,0.2)] cursor-pointer"
           >
             <Shield size={28} />
           </motion.div>
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-white font-heading" style={{ margin: 0, lineHeight: 1.2 }}>
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground font-heading" style={{ margin: 0, lineHeight: 1.2 }}>
               Platform Super Admin
             </h1>
-            <p className="text-xs text-[#7FA8A3]" style={{ marginTop: "6px", marginBottom: 0, fontWeight: 500 }}>
+            <p className="text-xs text-[var(--text-secondary)]" style={{ marginTop: "6px", marginBottom: 0, fontWeight: 500 }}>
               Register the primary platform administrator
             </p>
           </div>
@@ -198,7 +198,7 @@ export default function SuperAdminRegister() {
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <label style={{ fontSize: "11px", fontWeight: 700, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Full Name
             </label>
             <div className="relative">
@@ -211,11 +211,7 @@ export default function SuperAdminRegister() {
                   paddingBottom: "12px",
                   fontSize: "14px",
                   borderRadius: "10px",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  background: "#080808",
                   width: "100%",
-                  color: "#fff",
-                  outline: "none"
                 }}
                 type="text"
                 required
@@ -223,12 +219,12 @@ export default function SuperAdminRegister() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
-              <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+              <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] opacity-80" />
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <label style={{ fontSize: "11px", fontWeight: 700, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Administrator Email
             </label>
             <div className="relative">
@@ -241,11 +237,7 @@ export default function SuperAdminRegister() {
                   paddingBottom: "12px",
                   fontSize: "14px",
                   borderRadius: "10px",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  background: "#080808",
                   width: "100%",
-                  color: "#fff",
-                  outline: "none"
                 }}
                 type="email"
                 required
@@ -253,12 +245,12 @@ export default function SuperAdminRegister() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-              <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+              <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] opacity-80" />
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <label style={{ fontSize: "11px", fontWeight: 700, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Security Password
             </label>
             <div className="relative">
@@ -271,11 +263,7 @@ export default function SuperAdminRegister() {
                   paddingBottom: "12px",
                   fontSize: "14px",
                   borderRadius: "10px",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  background: "#080808",
                   width: "100%",
-                  color: "#fff",
-                  outline: "none"
                 }}
                 type={showPassword ? "text" : "password"}
                 required
@@ -283,11 +271,11 @@ export default function SuperAdminRegister() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+              <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] opacity-80" />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] hover:text-white transition-colors duration-200"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors duration-200"
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -296,7 +284,7 @@ export default function SuperAdminRegister() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <label style={{ fontSize: "11px", fontWeight: 700, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Developer Verification Key
             </label>
             <div className="relative">
@@ -309,11 +297,7 @@ export default function SuperAdminRegister() {
                   paddingBottom: "12px",
                   fontSize: "14px",
                   borderRadius: "10px",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  background: "#080808",
                   width: "100%",
-                  color: "#fff",
-                  outline: "none"
                 }}
                 type="password"
                 required
@@ -321,7 +305,7 @@ export default function SuperAdminRegister() {
                 value={devKey}
                 onChange={(e) => setDevKey(e.target.value)}
               />
-              <Key size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+              <Key size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] opacity-80" />
             </div>
           </div>
 
@@ -330,7 +314,7 @@ export default function SuperAdminRegister() {
             whileTap={{ scale: 0.99 }}
             type="submit" 
             disabled={loading || success} 
-            className="btn btn-primary w-full mt-2 py-3 rounded-xl font-bold tracking-wide shadow-[0_4px_20px_rgba(0,212,200,0.2)]"
+            className="btn btn-primary w-full mt-2 py-3 rounded-xl font-bold tracking-wide shadow-[0_4px_20px_rgba(0,168,159,0.2)] text-white"
             style={{ fontSize: "14px", height: "46px" }}
           >
             {loading ? "Registering Account..." : "Provision Administrator"}
@@ -338,9 +322,9 @@ export default function SuperAdminRegister() {
         </form>
 
         {/* Links */}
-        <div style={{ textAlign: "center", fontSize: "13px", color: "#7FA8A3", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "24px", marginTop: "4px", fontWeight: 500 }}>
+        <div style={{ textAlign: "center", fontSize: "13px", color: "var(--text-secondary)", borderTop: "1px solid var(--border-color)", paddingTop: "24px", marginTop: "4px", fontWeight: 500 }}>
           Have an account?{" "}
-          <Link href="/login" className="text-[#00D4C8] hover:text-[#00BDB3] transition-colors duration-200 font-bold ml-1">
+          <Link href="/login" className="text-[var(--primary-color)] hover:text-[var(--primary-dark)] transition-colors duration-200 font-bold ml-1">
             Sign In
           </Link>
         </div>
