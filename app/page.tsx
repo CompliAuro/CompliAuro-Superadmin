@@ -20,6 +20,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Eye,
+  EyeOff,
+  Lock,
   Settings,
   Sliders,
   Check,
@@ -396,11 +398,22 @@ export default function SuperAdminDashboard() {
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   /* ────────── Navigation & Status States ────────── */
-  const [activeTab, setActiveTab] = useState<"overview" | "hubs" | "payments" | "frameworks" | "risk-library">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "hubs" | "payments" | "frameworks" | "risk-library" | "settings">("overview");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
+  /* ────────── Change Password / Settings States ────────── */
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState(false);
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   /* ────────── Risk Libraries States ────────── */
   const [riskLibraries, setRiskLibraries] = useState<any[]>([]);
@@ -544,6 +557,45 @@ export default function SuperAdminDashboard() {
     localStorage.removeItem("adminEmail");
     router.push("/login");
   }, [isConnected, router]);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setChangePasswordError("New passwords do not match.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setChangePasswordError("Password must be at least 8 characters.");
+      return;
+    }
+    setChangePasswordLoading(true);
+    setChangePasswordError(null);
+    setChangePasswordSuccess(false);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users/me/password`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const body = await res.json();
+      if (res.ok) {
+        setChangePasswordSuccess(true);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        triggerAlert("Password updated successfully.");
+      } else {
+        setChangePasswordError(body?.message || "Failed to update password. Check your current password.");
+      }
+    } catch (err) {
+      console.error("Error updating password", err);
+      setChangePasswordError("Unable to contact backend authentication service.");
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
 
   /* ────────── API Fetch Queries ────────── */
   const loadOverview = useCallback(async () => {
@@ -1036,9 +1088,9 @@ export default function SuperAdminDashboard() {
 
   const filteredHubs = useMemo(() => {
     return hubs.filter(h => 
-      h.name.toLowerCase().includes(hubSearchQuery.toLowerCase()) || 
-      h.slug.toLowerCase().includes(hubSearchQuery.toLowerCase()) ||
-      h.subscriptionPlan.toLowerCase().includes(hubSearchQuery.toLowerCase())
+      (h.name || "").toLowerCase().includes(hubSearchQuery.toLowerCase()) || 
+      (h.slug || "").toLowerCase().includes(hubSearchQuery.toLowerCase()) ||
+      (h.subscriptionPlan || "BASIC").toLowerCase().includes(hubSearchQuery.toLowerCase())
     );
   }, [hubs, hubSearchQuery]);
 
@@ -1159,9 +1211,9 @@ export default function SuperAdminDashboard() {
   const handleOpenEditHub = (hub: HubDashboardRow) => {
     setSelectedHubId(hub.id);
     setEditHubForm({
-      status: (hub.subscriptionStatus === "suspended" ? "suspended" : hub.subscriptionStatus === "inactive" ? "inactive" : "active") as any,
-      plan: (hub.subscriptionPlan.startsWith("GLOBAL") ? "GLOBAL_TRUST" : hub.subscriptionPlan.startsWith("GROWTH") ? "GROWTH" : "LAUNCHPAD") as any,
-      modules: [...hub.assignedModules],
+      status: ((hub.subscriptionStatus || "active") === "suspended" ? "suspended" : (hub.subscriptionStatus || "active") === "inactive" ? "inactive" : "active") as any,
+      plan: ((hub.subscriptionPlan || "LAUNCHPAD").startsWith("GLOBAL") ? "GLOBAL_TRUST" : (hub.subscriptionPlan || "LAUNCHPAD").startsWith("GROWTH") ? "GROWTH" : "LAUNCHPAD") as any,
+      modules: [...(hub.assignedModules || [])],
     });
     setIsEditHubOpen(true);
   };
@@ -1454,9 +1506,9 @@ export default function SuperAdminDashboard() {
             {/* Settings & Logout Buttons */}
             <div style={{ display: "flex", flexDirection: isSidebarCollapsed ? "column" : "row", gap: "8px", width: "100%" }}>
               <button
-                onClick={() => alert("Settings panel opening... (Under Development)")}
-                className="btn btn-secondary"
-                style={{ flex: 1, padding: "8px 10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "11px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", height: "32px", background: "rgba(255,255,255,0.02)" }}
+                onClick={() => setActiveTab("settings")}
+                className={`btn ${activeTab === "settings" ? "btn-primary" : "btn-secondary"}`}
+                style={{ flex: 1, padding: "8px 10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "11px", borderRadius: "6px", border: "none", height: "32px", background: activeTab === "settings" ? "" : "rgba(255,255,255,0.02)", color: activeTab === "settings" ? "#050505" : "" }}
                 title={isSidebarCollapsed ? "Settings" : undefined}
               >
                 <Settings size={12} />
@@ -1474,7 +1526,7 @@ export default function SuperAdminDashboard() {
         </aside>
 
         {/* MAIN PANEL CONTENT */}
-        <main className="flex-1 flex flex-col bg-[#050505] pl-8 pr-5 pt-8 pb-5 overflow-y-auto">
+        <main className="flex-1 flex flex-col bg-[#050505] overflow-y-auto" style={{ padding: "40px 24px 24px 40px" }}>
           {/* Header Dashboard Banner */}
           <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
@@ -1639,17 +1691,17 @@ export default function SuperAdminDashboard() {
                         <td style={{ fontWeight: 700, color: "#fff" }}>{hub.name}</td>
                         <td style={{ fontFamily: "monospace" }}>{hub.slug}.compliauro.com</td>
                         <td>
-                          <span className={`plan-badge ${hub.subscriptionPlan.toLowerCase()}`}>
-                            {hub.subscriptionPlan.replace(/_/g, " ")}
+                          <span className={`plan-badge ${(hub.subscriptionPlan || "BASIC").toLowerCase()}`}>
+                            {(hub.subscriptionPlan || "BASIC").replace(/_/g, " ")}
                           </span>
                         </td>
-                        <td>{hub.assignedModuleCount} modules</td>
+                        <td>{hub.assignedModuleCount || 0} modules</td>
                         <td>
-                          <span className={`status-badge ${hub.subscriptionStatus.toLowerCase()}`}>
-                            {hub.subscriptionStatus}
+                          <span className={`status-badge ${(hub.subscriptionStatus || "ACTIVE").toLowerCase()}`}>
+                            {hub.subscriptionStatus || "Active"}
                           </span>
                         </td>
-                        <td>{new Date(hub.createdAt).toLocaleDateString()}</td>
+                        <td>{hub.createdAt ? new Date(hub.createdAt).toLocaleDateString() : "N/A"}</td>
                         <td style={{ textAlign: "right" }}>
                           <button
                             className="btn btn-secondary"
@@ -2123,7 +2175,165 @@ export default function SuperAdminDashboard() {
             </div>
           )}
 
+          {/* TAB PANEL 6: SYSTEM SETTINGS */}
+          {activeTab === "settings" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+              
+              {/* Grid Layout */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "24px", alignItems: "start" }}>
+                
+                {/* Left Column: Account Details Info */}
+                <div className="kpi-card" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px", border: "1px solid rgba(0, 212, 200, 0.12)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "rgba(0, 212, 200, 0.1)", border: "1px solid #00D4C8", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "14px", color: "#00D4C8" }}>
+                      SA
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#fff", margin: 0 }}>Super Administrator</h3>
+                      <p style={{ fontSize: "11px", color: "#7FA8A3", margin: 0 }}>Platform Root Control</p>
+                    </div>
+                  </div>
 
+                  <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 600, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>Registered Email</span>
+                      <span style={{ fontSize: "13px", color: "#fff", fontWeight: 500 }}>{typeof window !== "undefined" ? localStorage.getItem("adminEmail") || "admin@compliauro.com" : "admin@compliauro.com"}</span>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 600, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>Access Role</span>
+                      <span style={{ fontSize: "13px", color: "#fff", fontWeight: 500 }}>System Platform Super Admin</span>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 600, color: "#7FA8A3", textTransform: "uppercase", letterSpacing: "0.05em" }}>Session Status</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e" }} />
+                        <span style={{ fontSize: "12px", color: "#22c55e", fontWeight: 600 }}>Active & Authenticated</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Change Password Card */}
+                <div className="kpi-card" style={{ padding: "28px 24px", display: "flex", flexDirection: "column", gap: "20px", border: "1px solid rgba(0, 212, 200, 0.12)" }}>
+                  <div>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#fff", margin: 0 }}>Update Access Password</h3>
+                    <p style={{ fontSize: "12px", color: "#7FA8A3", marginTop: "4px", marginBottom: 0 }}>Change your super administrator account credentials. Passwords must be at least 8 characters.</p>
+                  </div>
+
+                  {/* Notifications */}
+                  {changePasswordSuccess && (
+                    <div 
+                      className="flex items-center gap-3 rounded-xl border border-[rgba(34,197,94,0.2)] bg-[rgba(34,197,94,0.03)] text-xs text-[#22c55e]"
+                      style={{ padding: "10px 12px" }}
+                    >
+                      <Zap size={14} className="shrink-0" color="#22c55e" />
+                      <span className="font-medium">Password updated successfully!</span>
+                    </div>
+                  )}
+
+                  {changePasswordError && (
+                    <div 
+                      className="flex items-center gap-3 rounded-xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.03)] text-xs text-[#ef4444]"
+                      style={{ padding: "10px 12px" }}
+                    >
+                      <Zap size={14} className="shrink-0" />
+                      <span className="font-medium">{changePasswordError}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleChangePassword} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    
+                    {/* Current Password */}
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: "11px", fontWeight: 700 }}>Current Password</label>
+                      <div className="relative">
+                        <input
+                          className="form-input"
+                          style={{ paddingLeft: "42px", paddingRight: "42px", height: "40px", fontSize: "13.5px", background: "#080808" }}
+                          type={showCurrentPassword ? "text" : "password"}
+                          required
+                          placeholder="Enter current password"
+                          value={currentPassword}
+                          onChange={e => setCurrentPassword(e.target.value)}
+                        />
+                        <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] hover:text-white transition-colors duration-200"
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                        >
+                          {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* New Password */}
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: "11px", fontWeight: 700 }}>New Password</label>
+                      <div className="relative">
+                        <input
+                          className="form-input"
+                          style={{ paddingLeft: "42px", paddingRight: "42px", height: "40px", fontSize: "13.5px", background: "#080808" }}
+                          type={showNewPassword ? "text" : "password"}
+                          required
+                          placeholder="Minimum 8 characters"
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                        />
+                        <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] hover:text-white transition-colors duration-200"
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                        >
+                          {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm New Password */}
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: "11px", fontWeight: 700 }}>Confirm New Password</label>
+                      <div className="relative">
+                        <input
+                          className="form-input"
+                          style={{ paddingLeft: "42px", paddingRight: "42px", height: "40px", fontSize: "13.5px", background: "#080808" }}
+                          type={showConfirmPassword ? "text" : "password"}
+                          required
+                          placeholder="Re-enter new password"
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                        />
+                        <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] opacity-80" />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7FA8A3] hover:text-white transition-colors duration-200"
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                        >
+                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={changePasswordLoading}
+                      className="btn btn-primary w-full mt-2"
+                      style={{ height: "42px", fontSize: "13.5px", fontWeight: 700 }}
+                    >
+                      {changePasswordLoading ? "Updating Password..." : "Update Password"}
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+            </div>
+          )}
 
         </main>
       </div>
