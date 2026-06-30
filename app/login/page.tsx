@@ -159,8 +159,11 @@ export default function SuperAdminLogin() {
               exit={{ opacity: 0, height: 0 }}
               style={{ overflow: "hidden" }}
             >
-              <div className="flex items-start gap-3 p-3.5 rounded-xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.03)] text-xs text-[#ef4444] shadow-[0_4px_12px_rgba(239,68,68,0.05)]">
-                <Zap size={14} className="mt-0.5 shrink-0" />
+              <div 
+                className="flex items-center gap-3 rounded-xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.03)] text-xs text-[#ef4444] shadow-[0_4px_12px_rgba(239,68,68,0.05)]"
+                style={{ padding: "12px 14px" }}
+              >
+                <Zap size={14} className="shrink-0" />
                 <span className="font-medium leading-relaxed">{error}</span>
               </div>
             </motion.div>
@@ -191,7 +194,7 @@ export default function SuperAdminLogin() {
                 }}
                 type="email"
                 required
-                placeholder="admin@compliauro.com"
+                placeholder="xyz@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
